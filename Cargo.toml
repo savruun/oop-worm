@@ -1,0 +1,18 @@
+[package]
+name = "oop-worm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "A larvae worm: privacy conventions and class ergonomics for Luau OOP"
+
+[[bin]]
+name = "oop-worm"
+path = "src/main.rs"
+
+[dependencies]
+larvae-worm = { path = "../larvae/crates/larvae-worm", features = [
+  "native",
+] }
+
+serde_json = "1"
+toml = "0.9"

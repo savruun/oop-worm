@@ -1,0 +1,39 @@
+name = "oop"
+api = 1
+form = "native"
+entry = "target/release/oop-worm"
+
+# The lints read plain Luau, so there is no frontend and no claim. The
+# host runs the Lint op over every .luau file, and over the Luau shadow
+# of a claimed file when its worm shares.
+lints_luau = true
+
+[lsp]
+# The hooks answer inside plain Luau files: the classes this worm reads
+# are written in ordinary code.
+serves_luau = true
+
+# Completions drop private members outside their class, and hover marks
+# a private member as one. Hover of a fully typed name stays answered.
+respond = ["completions", "hover"]
+
+[lints.private_access]
+description = "an underscore or @private member is used outside a function or a table of its class"
+default = "deny"
+
+[lints.implicit_self]
+description = "a colon method leaves self untyped; a dot definition with self: typeof(Class) keeps it"
+default = "warn"
+
+[lints.missing_index]
+description = "setmetatable installs a class as a metatable, and its __index is never set"
+default = "warn"
+
+[lints.unused_private]
+description = "a private member that nothing in its own file uses is dead, because outside files must not touch it"
+default = "warn"
+
+[options.hide_private_completions]
+type = "boolean"
+default = true
+description = "Drop underscore and @private members from completion lists outside their class. Hover and fully typed names keep answering."
