@@ -48,6 +48,20 @@ fn private_access(model: &Model, out: &mut Vec<Finding>) {
         }
 
         /*
+        The global containers hold globals, not the privates of a class.
+        `_G._BLINK` is how generated code namespaces itself, and an
+        Instance child can carry any name its author gave it.
+        */
+        if let Recv::Named(name) = &access.recv
+            && matches!(
+                name.as_str(),
+                "_G" | "shared" | "game" | "script" | "workspace" | "plugin"
+            )
+        {
+            continue;
+        }
+
+        /*
         The defining file owns its metamethods: `Class.__index = Class`
         is the constructor idiom, and it lives at module scope by
         design. Single underscore members and `@private` ones stay

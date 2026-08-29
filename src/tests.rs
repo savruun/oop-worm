@@ -4,8 +4,8 @@ The scenarios the worm exists for, each as one small file.
 
 use crate::lints::findings;
 use crate::lsp::{filter_completions, mark_hover};
-use crate::scan::{scan, Recv};
-use serde_json::{json, Value};
+use crate::scan::{Recv, scan};
+use serde_json::{Value, json};
 
 fn lint_names(src: &str) -> Vec<(String, String)> {
     findings(src, &scan(src))
@@ -292,10 +292,12 @@ return Class
 }
 
 fn items(labels: &[&str]) -> Value {
-    json!(labels
-        .iter()
-        .map(|l| json!({ "label": l, "kind": 5 }))
-        .collect::<Vec<_>>())
+    json!(
+        labels
+            .iter()
+            .map(|l| json!({ "label": l, "kind": 5 }))
+            .collect::<Vec<_>>()
+    )
 }
 
 fn kept(context: &Value, response: Value) -> Vec<String> {
@@ -441,5 +443,23 @@ return Class
         class.declares_private("_hp"),
         "members: {:?}",
         class.members.keys().collect::<Vec<_>>()
+    );
+}
+
+/// The global containers are nobody's class: `_G._BLINK` stays legal.
+#[test]
+fn the_global_containers_are_exempt() {
+    let src = "\
+_G._BLINK = _G._BLINK or {}
+_G._BLINK['BLINK'] = true
+shared._cache = {}
+local v = script._marker
+return v
+";
+    let found = lint_names(src);
+
+    assert!(
+        found.iter().all(|(l, _)| l != "private_access"),
+        "{found:?}"
     );
 }

@@ -10,7 +10,7 @@ on hover. Everything rests on one lexical model in `scan`.
 
 use oop_worm::{lints, lsp, scan};
 
-use larvae_worm::native::{serve, Handler, Settings};
+use larvae_worm::native::{Handler, Settings, serve};
 use larvae_worm::wire::Lint;
 
 fn main() {
