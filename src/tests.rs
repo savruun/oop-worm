@@ -463,3 +463,69 @@ return v
         "{found:?}"
     );
 }
+
+/*
+A class bound with `const` is a class.
+
+larvae reads `const` everywhere it reads `local`, and a project that
+writes its providers that way had every declaration of a private
+member reported as an access of one: the class was never discovered,
+so `function Provider.__Thing()` looked like a use rather than the
+line that declares it.
+*/
+#[test]
+fn a_const_class_declares_its_privates() {
+    let src = "\
+const Provider = {
+	_profiles = {},
+}
+
+function Provider.__PlayerRemoving(self: Self, player: Player)
+	return player
+end
+
+function Provider._helper()
+	return 1
+end
+
+return Provider
+";
+
+    let private_only = |text: &str| -> Vec<(String, String)> {
+        lint_names(text)
+            .into_iter()
+            .filter(|(lint, _)| lint == "private_access")
+            .collect()
+    };
+
+    assert_eq!(private_only(src), Vec::<(String, String)>::new(), "{src}");
+
+    // The same file with `local` always worked, and still does.
+    let with_local = src.replacen("const Provider", "local Provider", 1);
+
+    assert_eq!(private_only(&with_local), Vec::<(String, String)>::new());
+}
+
+/// A real access from outside the class still reports, whichever binder.
+#[test]
+fn a_const_class_still_guards_its_privates() {
+    let src = "\
+const Provider = {}
+
+function Provider._hidden()
+	return 1
+end
+
+const other = Provider._hidden
+
+return other
+";
+
+    let found: Vec<(String, String)> = lint_names(src)
+        .into_iter()
+        .filter(|(lint, _)| lint == "private_access")
+        .collect();
+
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].1, "_hidden");
+}

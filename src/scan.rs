@@ -414,8 +414,16 @@ pub fn scan(src: &str) -> Model {
             continue;
         }
 
-        let after_local =
-            k > 0 && toks[k - 1].kind == Kind::Ident && text(src, &toks[k - 1]) == "local";
+        /*
+        `const` binds a name the way `local` does, and larvae reads it
+        everywhere `local` is read. A class the author wrote with it
+        went undiscovered, so every `function C.m()` of that class
+        looked like an access of a private member rather than the
+        declaration of one.
+        */
+        let after_local = k > 0
+            && toks[k - 1].kind == Kind::Ident
+            && matches!(text(src, &toks[k - 1]), "local" | "const");
         let statement_head = k == 0
             || after_local
             || (toks[k - 1].kind == Kind::Op
