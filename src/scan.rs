@@ -56,6 +56,15 @@ pub struct Member {
     pub span: (u32, u32),
     /// Underscore-named, or marked `@private` in a doc comment
     pub private: bool,
+    /*
+    Marked `@lifecycle`: something outside this file calls it.
+
+    A framework calls the methods it names, ex: chief calls the
+    lifecycle of a provider, and no line of the file that declares one
+    ever does. Without the mark that reads as dead code, and the author
+    is told to delete the method the framework needs.
+    */
+    pub lifecycle: bool,
 }
 
 #[derive(Debug, Default)]
@@ -659,9 +668,14 @@ pub fn scan(src: &str) -> Model {
     nothing but comments and space sits between the two.
     */
     let mut doc_private: Vec<(u32, u32)> = Vec::new(); // spans of marked defs
+    let mut doc_lifecycle: Vec<(u32, u32)> = Vec::new();
 
     for &(cs, ce) in &model.comments {
-        if !src[cs as usize..ce as usize].contains("@private") {
+        let text = &src[cs as usize..ce as usize];
+        let marks_private = text.contains("@private");
+        let marks_lifecycle = text.contains("@lifecycle");
+
+        if !marks_private && !marks_lifecycle {
             continue;
         }
 
@@ -697,7 +711,13 @@ pub fn scan(src: &str) -> Model {
             .is_empty();
 
         if gap.len() < 200 && head_only {
-            doc_private.push(*span);
+            if marks_private {
+                doc_private.push(*span);
+            }
+
+            if marks_lifecycle {
+                doc_lifecycle.push(*span);
+            }
         }
     }
 
@@ -706,11 +726,13 @@ pub fn scan(src: &str) -> Model {
 
     for (idx, name, span) in defs {
         let private = name.starts_with('_') || doc_private.contains(&span);
+        let lifecycle = doc_lifecycle.contains(&span);
 
-        model.classes[idx]
-            .members
-            .entry(name)
-            .or_insert(Member { span, private });
+        model.classes[idx].members.entry(name).or_insert(Member {
+            span,
+            private,
+            lifecycle,
+        });
     }
 
     /*
@@ -850,9 +872,11 @@ pub fn scan(src: &str) -> Model {
     }
 
     for (idx, name, span) in grown {
+        // A member a write grew carries no doc comment of its own.
         model.classes[idx].members.entry(name).or_insert(Member {
             span,
             private: true,
+            lifecycle: false,
         });
     }
 

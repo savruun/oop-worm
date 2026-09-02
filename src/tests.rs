@@ -529,3 +529,63 @@ return other
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0].1, "_hidden");
 }
+
+/*
+A member a framework calls is not unused.
+
+chief calls the lifecycle of a provider, and the file that declares
+one never calls it, so `unused_private` told the author to delete the
+method the framework needs. `@lifecycle` in the doc comment says who
+calls it.
+*/
+#[test]
+fn a_lifecycle_member_is_not_unused() {
+    let src = "\
+const Provider = {}
+
+--[[
+	@lifecycle
+]]
+function Provider._OnStart(self: Self)
+	return 1
+end
+
+function Provider._forgotten(self: Self)
+	return 2
+end
+
+return Provider
+";
+
+    let found = lint_names(src);
+
+    assert_eq!(found.len(), 1, "only the unmarked one is unused: {found:?}");
+    assert_eq!(
+        found[0],
+        ("unused_private".to_string(), "_forgotten".to_string())
+    );
+}
+
+/// The mark says nothing about privacy: a marked member still guards itself.
+#[test]
+fn a_lifecycle_member_stays_private() {
+    let src = "\
+const Provider = {}
+
+--- @lifecycle
+function Provider._OnStart()
+	return 1
+end
+
+const stolen = Provider._OnStart
+
+return stolen
+";
+
+    let found: Vec<(String, String)> = lint_names(src)
+        .into_iter()
+        .filter(|(lint, _)| lint == "private_access")
+        .collect();
+
+    assert_eq!(found.len(), 1, "{found:?}");
+}

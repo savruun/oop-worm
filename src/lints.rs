@@ -169,7 +169,17 @@ fn unused_private(model: &Model, out: &mut Vec<Finding>) {
 
     for class in &model.classes {
         for (name, member) in &class.members {
-            if !member.private || name.starts_with("__") || said.contains(&member.span) {
+            /*
+            A member marked `@lifecycle` is called from outside this
+            file: a framework calls the methods it names, and the file
+            that declares one never does. Reporting it as unused tells
+            the author to delete the method the framework needs.
+            */
+            if !member.private
+                || member.lifecycle
+                || name.starts_with("__")
+                || said.contains(&member.span)
+            {
                 continue;
             }
 
