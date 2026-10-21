@@ -3,9 +3,7 @@ The scenarios the worm exists for, each as one small file.
 */
 
 use crate::lints::findings;
-use crate::lsp::{filter_completions, mark_hover};
 use crate::scan::{Recv, scan};
-use serde_json::{Value, json};
 
 fn lint_names(src: &str) -> Vec<(String, String)> {
     findings(src, &scan(src))
@@ -291,125 +289,7 @@ return Class
     assert!(found.iter().all(|(_, at)| at != "__index"), "{found:?}");
 }
 
-fn items(labels: &[&str]) -> Value {
-    json!(
-        labels
-            .iter()
-            .map(|l| json!({ "label": l, "kind": 5 }))
-            .collect::<Vec<_>>()
-    )
-}
-
-fn kept(context: &Value, response: Value) -> Vec<String> {
-    let out = filter_completions(context, response.clone()).unwrap_or(response);
-
-    out.as_array()
-        .unwrap()
-        .iter()
-        .map(|i| i["label"].as_str().unwrap().to_string())
-        .collect()
-}
-
-/// Outside the class, the dot hides underscore members; inside, it shows them.
-#[test]
-fn completions_hide_privates_outside() {
-    let src = "\
-local Class = {}
-
-function Class._helper()
-	return 1
-end
-
-function Class.run()
-	return Class.
-end
-
-local x = Class.
-";
-    // Outside: the trailing `Class.` at the bottom.
-    let outside = (src.len() - 1) as u64;
-    let context = json!({ "path": "/p/a.luau", "text": src, "offset": outside });
-
-    assert_eq!(
-        kept(&context, items(&["run", "_helper"])),
-        vec!["run".to_string()]
-    );
-
-    // Inside `Class.run`: the `Class.` before the second end.
-    let inside = (src.find("Class.\nend").unwrap() + 6) as u64;
-    let context = json!({ "path": "/p/a.luau", "text": src, "offset": inside });
-
-    assert_eq!(
-        kept(&context, items(&["run", "_helper"])),
-        vec!["run".to_string(), "_helper".to_string()]
-    );
-}
-
-/// `self.` keeps everything, wherever it appears.
-#[test]
-fn completions_keep_self_whole() {
-    let src = "local x = self.\n";
-    let context = json!({ "path": "/p/a.luau", "text": src, "offset": (src.len() - 1) as u64 });
-
-    assert_eq!(
-        kept(&context, items(&["_hp", "damage"])),
-        vec!["_hp".to_string(), "damage".to_string()]
-    );
-}
-
-/// A `@private` doc on an item hides it, even with a public name.
-#[test]
-fn completions_read_the_docs() {
-    let src = "local o = require(x)\nlocal y = o.\n";
-    let context = json!({ "path": "/p/a.luau", "text": src, "offset": (src.len() - 1) as u64 });
-
-    let response = json!([
-        { "label": "save", "kind": 3 },
-        { "label": "rawSave", "kind": 3, "documentation": { "kind": "markdown", "value": "Saves.\n@private" } },
-    ]);
-
-    assert_eq!(kept(&context, response), vec!["save".to_string()]);
-}
-
-/// The dunder members stay offered on the class name in its own file.
-#[test]
-fn completions_keep_dunders_on_the_class() {
-    let src = "local Class = {}\nClass.__index = Class\nlocal m = Class.\n";
-    let context = json!({ "path": "/p/a.luau", "text": src, "offset": (src.len() - 1) as u64 });
-
-    assert_eq!(
-        kept(&context, items(&["__index", "_secret", "new"])),
-        vec!["__index".to_string(), "new".to_string()]
-    );
-}
-
-/// A fully typed private hovers, and the card says it is private.
-#[test]
-fn hover_marks_a_private() {
-    let src = "\
-local Class = {}
-
-function Class._helper()
-	return 1
-end
-
-local x = Class._helper
-";
-    let at = (src.rfind("_helper").unwrap() + 2) as u64;
-    let context = json!({ "path": "/p/a.luau", "text": src, "offset": at });
-    let response = json!({ "contents": { "kind": "markdown", "value": "```luau\nfunction Class._helper(): number\n```" } });
-
-    let marked = mark_hover(&context, response).expect("the hover gains a note");
-    let value = marked["contents"]["value"].as_str().unwrap();
-
-    assert!(
-        value.contains("private by convention of `Class`"),
-        "{value}"
-    );
-    assert!(value.contains("function Class._helper"), "{value}");
-}
-
-/// The receiver reader agrees with the scanner's classification.
+/// The scanner classifies each receiver: a name, `self`, or a longer chain.
 #[test]
 fn the_receiver_reader_matches() {
     let model = scan("local a = foo.bar\nlocal b = a.b._x\nlocal c = self._y\n");

@@ -76,10 +76,6 @@ pub struct Class {
 }
 
 impl Class {
-    pub fn owns(&self, at: u32) -> bool {
-        self.contexts.iter().any(|&(s, e)| s <= at && at < e)
-    }
-
     pub fn declares_private(&self, name: &str) -> bool {
         self.members.get(name).is_some_and(|m| m.private)
     }

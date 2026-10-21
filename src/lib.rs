@@ -4,7 +4,6 @@ model. The binary in `main.rs` is the worm larvae runs.
 */
 
 pub mod lints;
-pub mod lsp;
 pub mod scan;
 
 #[cfg(test)]
