@@ -1,14 +1,12 @@
 # oop-worm
 
 A larvae worm that holds the privacy line in Luau OOP. An underscore or
-`@private` member belongs to its class; outside the class it neither
-lints clean nor completes, and inside the class everything works as
-before.
+`@private` member belongs to its class. Outside the class, a use of it
+does not lint clean. Inside the class, everything works as before.
 
 The worm claims no extension. Its lints run over every `.luau` file
 through `lints_luau`, and over the Luau shadow of a claimed file when the
-claiming worm sets `shared` (the luaux worm does). Its editor hooks
-answer in the same files.
+claiming worm sets `shared` (the luaux worm does).
 
 ## What counts as inside
 
@@ -21,10 +19,10 @@ A class is a table a statement binds by name: `local Class = {}` or
 - a table stored on it: `Class.handlers = { ... }`
 - `self.anything`, wherever `self` appears
 
-Inside those, privates lint clean and complete, on any receiver the
-class declares: `other._x` inside `Vec:add(other)` works. The defining
-file also keeps its metamethod idiom: `Class.__index = Class` is legal
-at module scope. Everything else is outside.
+Inside those, privates lint clean, on any receiver the class declares:
+`other._x` inside `Vec:add(other)` works. The defining file also keeps
+its metamethod idiom: `Class.__index = Class` is legal at module scope.
+Everything else is outside.
 
 ## Lints
 
@@ -44,18 +42,13 @@ like any other lint.
 
 ## Editor
 
-- Completions after `.` or `:` drop underscore members and members whose
-  docs carry `@private`, outside the class. Inside the class, and on
-  `self.`, the full list stays.
-- Hover keeps answering for a fully typed private, and the card gains a
-  `private by convention` line.
+The lints reach the editor through `larvae lsp`, so a private access
+shows as a diagnostic while you type.
 
-The filter is a setting:
-
-```toml
-[worms.oop.config]
-hide_private_completions = false
-```
+The worm no longer filters completion lists or marks private members on
+hover. Since larvae 0.10, larvae serves lint, format, and fixes in the
+editor, and luau-lsp serves completion and hover. The
+`hide_private_completions` setting went with the filter.
 
 ## Install
 
